@@ -1,31 +1,32 @@
-let item = document.getElementsByClassName('slide');
-let slider = document.getElementById('slider');
-let sliderItems = document.getElementById('items');
-let prev = document.getElementById('previousSlide');
-let next = document.getElementById('nextSlide');
+const slider = document.getElementById('slider');
+const sliderItems = document.getElementById('items');
+const prevSlide = document.getElementById('previousSlide');
+const nextSlide = document.getElementById('nextSlide');
+const dots = document.querySelectorAll('.slider__dots--dot');
 
-slide(slider, sliderItems, prev, next);
+const threshold = 100;
+let posTouchStart = 0;
+let posTouchMove = 0;
+let posInitial;
+let posFinal;
 
-function slide(wrapper, items, prev, next) {
-  let posX1 = 0;
-  let posX2 = 0;
-  let posInitial;
-  let posFinal;
-  let threshold = 100;
-  let slides = items.getElementsByClassName('slide');
-  let slidesLength = slides.length;
-  let slideSize = items.getElementsByClassName('slide')[0].offsetWidth;
-  let firstSlide = slides[0];
-  let lastSlide = slides[slidesLength - 1];
-  let cloneFirst = firstSlide.cloneNode(true);
-  let cloneLast = lastSlide.cloneNode(true);
-  let index = 0;
-  let allowShift = true;
+slide(sliderItems);
+
+function slide(items) {
+  const slides = items.getElementsByClassName('slide');
+  const slidesLength = slides.length;
+  const slideSize = items.getElementsByClassName('slide')[0].offsetWidth;
+  const firstSlide = slides[0];
+  const lastSlide = slides[slidesLength - 1];
+  const cloneFirstSlide = firstSlide.cloneNode(true);
+  const cloneLastSlide = lastSlide.cloneNode(true);
+
+  let indexSlide = 0;
+  let allowShiftSlide = true;
 
   // Clone first and last slide
-  items.appendChild(cloneFirst);
-  items.insertBefore(cloneLast, firstSlide);
-  wrapper.classList.add('loaded');
+  items.appendChild(cloneFirstSlide);
+  items.insertBefore(cloneLastSlide, firstSlide);
 
   // Mouse and Touch events
   items.onmousedown = dragStart;
@@ -36,43 +37,50 @@ function slide(wrapper, items, prev, next) {
   items.addEventListener('touchmove', dragAction);
 
   // Click events
-  prev.addEventListener('click', function () { shiftSlide(-1) });
-  next.addEventListener('click', function () { shiftSlide(1) });
+  prevSlide.addEventListener('click', function () { shiftSlide(-1) });
+  nextSlide.addEventListener('click', function () { shiftSlide(1) });
 
   // Transition events
   items.addEventListener('transitionend', checkIndex);
 
+  addActiveDots();
+
   // Find out the starting position
   function dragStart(e) {
-    e = e || window.event;
+    if (!allowShiftSlide) return;
+
     e.preventDefault();
+
     posInitial = items.offsetLeft;
 
     if (e.type === 'touchstart') {
-      posX1 = e.touches[0].clientX;
+      posTouchStart = e.touches[0].clientX;
     } else {
-      posX1 = e.clientX;
+      posTouchStart = e.clientX;
+
       document.onmouseup = dragEnd;
       document.onmousemove = dragAction;
     }
   }
+
   // Get the end positions of the movement
   function dragAction(e) {
-    e = e || window.event;
 
     if (e.type === 'touchmove') {
-      posX2 = posX1 - e.touches[0].clientX;
-      posX1 = e.touches[0].clientX;
+      posTouchMove = posTouchStart - e.touches[0].clientX;
+      posTouchStart = e.touches[0].clientX;
     } else {
-      posX2 = posX1 - e.clientX;
-      posX1 = e.clientX;
+      posTouchMove = posTouchStart - e.clientX;
+      posTouchStart = e.clientX;
     }
-    items.style.left = (items.offsetLeft - posX2) + "px";
+    
+    items.style.left = (items.offsetLeft - posTouchMove) + "px";
   }
 
   // Compare the difference between the start and end position
-  function dragEnd(e) {
+  function dragEnd() {
     posFinal = items.offsetLeft;
+
     if (posFinal - posInitial < -threshold) {
       shiftSlide(1, 'drag');
     } else if (posFinal - posInitial > threshold) {
@@ -86,37 +94,71 @@ function slide(wrapper, items, prev, next) {
   }
 
   // Moves the slides to the next or to the previous slide.
-  function shiftSlide(dir, action) {
+  function shiftSlide(direction, action) {
     items.classList.add('shifting');
 
-    if (allowShift) {
+    if (allowShiftSlide) {
       if (!action) { posInitial = items.offsetLeft; }
 
-      if (dir === 1) {
+      if (direction === 1) {
         items.style.left = (posInitial - slideSize) + "px";
-        index++;
-      } else if (dir === -1) {
+        indexSlide++;
+      } else if (direction === -1) {
         items.style.left = (posInitial + slideSize) + "px";
-        index--;
+        indexSlide--;
       }
+
     };
 
-    allowShift = false;
+    allowShiftSlide = false;
   }
 
   function checkIndex() {
     items.classList.remove('shifting');
 
-    if (index === -1) {
+    if (indexSlide === -1) {
       items.style.left = -(slidesLength * slideSize) + "px";
-      index = slidesLength - 1;
+      indexSlide = slidesLength - 1;
     }
 
-    if (index === slidesLength) {
-      items.style.left = -(1 * slideSize) + "px";
-      index = 0;
+    if (indexSlide === slidesLength) {
+      items.style.left = -slideSize + "px";
+      indexSlide = 0;
     }
 
-    allowShift = true;
+    clearActiveDots();
+    addActiveDots();
+
+    allowShiftSlide = true;
   }
+
+  function addActiveDots() {
+    dots.forEach((dot, indexDot) => {
+      if(indexDot === indexSlide) {
+        dot.classList.add('active');
+      }
+    })
+  }
+
+  function clearActiveDots() {
+    for (let i = 0; i < dots.length; i++) {
+      dots[i].classList.remove('active');
+    }
+  };
+
+  dots.forEach((dot, indexDot) => {
+    dot.addEventListener('click', () => {
+
+      if (indexDot !== indexSlide) {
+        items.style.left = -((1 + indexDot) * slideSize) + 'px';
+        indexSlide = indexDot;
+      } else {
+        items.style.left = -slideSize + 'px';
+        indexSlide   = 0;
+      }
+
+      clearActiveDots();
+      dot.classList.add('active');
+    })
+  })
 }
